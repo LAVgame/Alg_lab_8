@@ -1,203 +1,83 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Collections;
 
-
-namespace HuffmanTest
+class InversionCount
 {
-    class Program
+    public static int CountInversions(int[] arr)
     {
-        static void Main(string[] args)
+        if (arr == null || arr.Length <= 1)
         {
-            Console.WriteLine("Введите строку:");
-            string input = Console.ReadLine();
-            HuffmanTree huffmanTree = new HuffmanTree();
-
-            // Build the Huffman tree
-            huffmanTree.Build(input);
-
-            // Encode
-            BitArray encoded = huffmanTree.Encode(input);
-
-            Console.Write("Encoded: ");
-            foreach (bool bit in encoded)
-            {
-                Console.Write((bit ? 1 : 0) + "");
-            }
-            Console.WriteLine();
-
-            // Decode
-            string decoded = huffmanTree.Decode(encoded);
-
-            Console.WriteLine("Decoded: " + decoded);
-
-            Console.ReadLine();
+            return 0; // Нет инверсий в пустом массиве или массиве из одного элемента
         }
+
+        int[] temp = new int[arr.Length];
+        return MergeSortAndCount(arr, temp, 0, arr.Length - 1);
     }
-}
 
-namespace HuffmanTest
-{
-    public class HuffmanTree
+    private static int MergeSortAndCount(int[] arr, int[] temp, int left, int right)
     {
-        public class Node
+        int count = 0;
+
+        if (left < right)
         {
-            public char Symbol { get; set; }
-            public int Frequency { get; set; }
-            public Node Right { get; set; }
-            public Node Left { get; set; }
+            int mid = (left + right) / 2;
 
-            public List<bool> Traverse(char symbol, List<bool> data)
+            // Рекурсивно сортируем и подсчитываем инверсии в левой и правой половинах массива
+            count += MergeSortAndCount(arr, temp, left, mid);
+            count += MergeSortAndCount(arr, temp, mid + 1, right);
+
+            // Объединяем две отсортированные половины и подсчитываем инверсии
+            count += MergeAndCount(arr, temp, left, mid, right);
+        }
+
+        return count;
+    }
+
+    private static int MergeAndCount(int[] arr, int[] temp, int left, int mid, int right)
+    {
+        int i = left;
+        int j = mid + 1;
+        int k = left;
+        int count = 0;
+
+        while (i <= mid && j <= right)
+        {
+            if (arr[i] <= arr[j])
             {
-                // Leaf
-                if (Right == null && Left == null)
-                {
-                    if (symbol.Equals(this.Symbol))
-                    {
-                        return data;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-                else
-                {
-                    List<bool> left = null;
-                    List<bool> right = null;
-
-                    if (Left != null)
-                    {
-                        List<bool> leftPath = new List<bool>();
-                        leftPath.AddRange(data);
-                        leftPath.Add(false);
-
-                        left = Left.Traverse(symbol, leftPath);
-                    }
-
-                    if (Right != null)
-                    {
-                        List<bool> rightPath = new List<bool>();
-                        rightPath.AddRange(data);
-                        rightPath.Add(true);
-                        right = Right.Traverse(symbol, rightPath);
-                    }
-
-                    if (left != null)
-                    {
-                        return left;
-                    }
-                    else
-                    {
-                        return right;
-                    }
-                }
+                temp[k++] = arr[i++];
+            }
+            else
+            {
+                // Если arr[i] > arr[j], то у нас есть инверсия
+                temp[k++] = arr[j++];
+                count += (mid - i + 1);
             }
         }
 
-        private List<Node> nodes = new List<Node>();
-        public Node Root { get; set; }
-        public Dictionary<char, int> Frequencies = new Dictionary<char, int>();
-
-        public void Build(string source)
+        // Завершаем копирование оставшихся элементов, если они есть
+        while (i <= mid)
         {
-            for (int i = 0; i < source.Length; i++)
-            {
-                if (!Frequencies.ContainsKey(source[i]))
-                {
-                    Frequencies.Add(source[i], 0);
-                }
-
-                Frequencies[source[i]]++;
-            }
-
-            foreach (KeyValuePair<char, int> symbol in Frequencies)
-            {
-                nodes.Add(new Node() { Symbol = symbol.Key, Frequency = symbol.Value });
-            }
-
-            while (nodes.Count > 1)
-            {
-                List<Node> orderedNodes = nodes.OrderBy(node => node.Frequency).ToList<Node>();
-
-                if (orderedNodes.Count >= 2)
-                {
-                    // Take first two items
-                    List<Node> taken = orderedNodes.Take(2).ToList<Node>();
-
-                    // Create a parent node by combining the frequencies
-                    Node parent = new Node()
-                    {
-                        Symbol = '*',
-                        Frequency = taken[0].Frequency + taken[1].Frequency,
-                        Left = taken[0],
-                        Right = taken[1]
-                    };
-
-                    nodes.Remove(taken[0]);
-                    nodes.Remove(taken[1]);
-                    nodes.Add(parent);
-                }
-
-                this.Root = nodes.FirstOrDefault();
-
-            }
-
+            temp[k++] = arr[i++];
         }
 
-        public BitArray Encode(string source)
+        while (j <= right)
         {
-            List<bool> encodedSource = new List<bool>();
-
-            for (int i = 0; i < source.Length; i++)
-            {
-                List<bool> encodedSymbol = this.Root.Traverse(source[i], new List<bool>());
-                encodedSource.AddRange(encodedSymbol);
-            }
-
-            BitArray bits = new BitArray(encodedSource.ToArray());
-
-            return bits;
+            temp[k++] = arr[j++];
         }
 
-        public string Decode(BitArray bits)
+        // Копируем отсортированные элементы обратно в оригинальный массив
+        for (int l = left; l <= right; l++)
         {
-            Node current = this.Root;
-            string decoded = "";
-
-            foreach (bool bit in bits)
-            {
-                if (bit)
-                {
-                    if (current.Right != null)
-                    {
-                        current = current.Right;
-                    }
-                }
-                else
-                {
-                    if (current.Left != null)
-                    {
-                        current = current.Left;
-                    }
-                }
-
-                if (IsLeaf(current))
-                {
-                    decoded += current.Symbol;
-                    current = this.Root;
-                }
-            }
-
-            return decoded;
+            arr[l] = temp[l];
         }
 
-        public bool IsLeaf(Node node)
-        {
-            return (node.Left == null && node.Right == null);
-        }
+        return count;
+    }
 
+    static void Main()
+    {
+        int[] arr = { 1, 20, 6, 4, 5 };
+        int inversionCount = CountInversions(arr);
+
+        Console.WriteLine("Количество инверсий в массиве: " + inversionCount);
     }
 }
